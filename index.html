@@ -315,6 +315,8 @@
     .toast-error { background:rgba(239,68,68,0.2); border:1px solid rgba(239,68,68,0.3); color:var(--red); }
 
     .hidden { display: none !important; }
+    input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.7) brightness(1.2); cursor:pointer; }
+    input[type="date"] { color-scheme: dark; }
 
     @media (max-width: 500px) {
       .btn-row { flex-direction:column; }
@@ -332,7 +334,7 @@
       .user-email { font-weight: 600; color: var(--textSecondary); }
       .user-status { font-weight: 700; }
       .btn { font-weight: 700; }
-      .search-box { font-weight: 600; border-color: rgba(90,75,145,0.35); }
+      .search-box { font-weight: 600; border-color: rgba(90,75,145,0.35); padding-left: 42px; }
       .search-box::placeholder { font-weight: 600; }
       .modal-header h3 { font-size: 15px; font-weight: 700; }
       .modal-body { font-weight: 600; }
@@ -350,7 +352,7 @@
       .stat-card { padding: 18px 20px; }
       .stat-value { font-size: 26px; }
       .stat-label { font-size: 11.5px; }
-      .search-box { font-size: 16px; padding: 14px 20px; }
+      .search-box { font-size: 16px; padding: 14px 20px 14px 46px; }
       .user-item { padding: 16px 20px; gap: 16px; }
       .user-name { font-size: 16px; }
       .user-email { font-size: 13px; }
@@ -406,6 +408,9 @@
       modalOpen: false,
       activeFilter: 'all', // all, active, expired, disabled, noAccess
       displayCount: 20, // lazy loading batch size
+      subRevView: false,        // show subscription revenue panel
+      subRevFrom: '',           // date filter from
+      subRevTo: '',             // date filter to
     };
     
     function openUserDetail(uid) {
@@ -626,9 +631,20 @@
           <div class="stat-chip-label">${ch.label}</div>
         </div>`).join('') +
         `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--glassBorder)">
-          <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Admin</div>
-          <div style="font-size:12px;color:var(--textSecondary);line-height:1.8;margin-bottom:12px">${state.user?.email || ''}</div>
-          <button onclick="firebase.auth().signOut()" style="width:100%;padding:9px 14px;border-radius:9px;border:1.5px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.1);color:#f87171;font-size:13px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;text-align:left;display:flex;align-items:center;gap:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</button>
+          <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Revenue</div>
+          <div class="stat-chip ${state.subRevView?'active':''}" id="subRevChip" style="border-color:${state.subRevView?'rgba(16,185,129,0.5)':'transparent'};background:${state.subRevView?'rgba(16,185,129,0.1)':'transparent'}">
+            <div style="display:flex;align-items:center;gap:8px">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              <div>
+                <div style="font-size:13px;font-weight:700;color:#34d399">Subscription Revenue</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--glassBorder)">
+            <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Admin</div>
+            <div style="font-size:12px;color:var(--textSecondary);line-height:1.8;margin-bottom:12px">${state.user?.email || ''}</div>
+            <button onclick="firebase.auth().signOut()" style="width:100%;padding:9px 14px;border-radius:9px;border:1.5px solid rgba(239,68,68,0.45);background:rgba(239,68,68,0.1);color:#f87171;font-size:13px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;text-align:left;display:flex;align-items:center;gap:8px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</button>
+          </div>
         </div>`;
     }
 
@@ -679,12 +695,13 @@
           </div>
           <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:12px;color:var(--textMuted)">${state.filteredUsers.length} user${state.filteredUsers.length !== 1 ? 's' : ''}${state.activeFilter !== 'all' ? ' · ' + state.activeFilter : ''}</span>
-            <button class="btn btn-purple" id="broadcastAllBtn" style="font-size:11px;padding:7px 13px;font-weight:800"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Broadcast to All</button>
+            <button class="btn btn-purple" id="broadcastAllBtn" style="font-size:11px;padding:7px 13px;font-weight:800"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>Broadcast to All</button>
           </div>
           <div id="userList">
             ${list || '<div style="text-align:center;padding:40px;color:var(--textMuted);font-size:14px">No users found</div>'}
           </div>
           ${hasMore ? '<div id="loadMoreBtn" style="text-align:center;padding:16px"><button class="btn btn-purple" style="width:100%;max-width:300px">Load more (' + (state.filteredUsers.length - state.displayCount) + ' remaining)</button></div>' : ''}
+          ${state.subRevView ? renderSubRevPanel() : ''}
         </div>
       </div>`;
     }
@@ -733,6 +750,32 @@
       // Broadcast to all
       const broadcastAllBtn = document.getElementById('broadcastAllBtn');
       if (broadcastAllBtn) broadcastAllBtn.onclick = () => showBroadcastAllModal();
+      // Subscription Revenue chip
+      const subRevChip = document.getElementById('subRevChip');
+      if (subRevChip) subRevChip.onclick = () => {
+        state.subRevView = !state.subRevView;
+        render();
+        if (state.subRevView) {
+          setTimeout(() => {
+            const el = document.getElementById('subRevPanel');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 80);
+        }
+      };
+      // Sub-rev date filters
+      const srFrom = document.getElementById('subRevFrom');
+      const srTo = document.getElementById('subRevTo');
+      if (srFrom) srFrom.onchange = (e) => { state.subRevFrom = e.target.value; render(); };
+      if (srTo) srTo.onchange = (e) => { state.subRevTo = e.target.value; render(); };
+      // Sub-rev set cost buttons
+      document.querySelectorAll('.set-cost-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          const uid = btn.dataset.uid;
+          const name = btn.dataset.name;
+          showSetCostModal(uid, name);
+        };
+      });
       // User clicks
       document.querySelectorAll('.user-item').forEach(el => {
         el.onclick = () => { openUserDetail(el.dataset.uid); };
@@ -837,6 +880,27 @@
           </div>
         </div>
 
+        <!-- Subscription Cost -->
+        <div class="detail-section" style="border-color:rgba(52,211,153,0.3)">
+          <div class="detail-section-title" style="color:#34d399"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Subscription Cost</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:10px;background:rgba(16,185,129,0.06);border:1px solid rgba(52,211,153,0.2);margin-bottom:12px">
+            <div>
+              ${u.subscriptionCost && u.subscriptionCost > 0 ? `
+                <div style="font-family:'Orbitron',monospace;font-size:22px;font-weight:900;color:#34d399">$${Number(u.subscriptionCost).toFixed(2)}</div>
+                ${u.subPeriodStart && u.subPeriodEnd ? (() => {
+                  const s = (u.subPeriodStart.toDate ? u.subPeriodStart.toDate() : new Date(u.subPeriodStart)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+                  const e = (u.subPeriodEnd.toDate   ? u.subPeriodEnd.toDate()   : new Date(u.subPeriodEnd)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+                  return `<div style="font-size:11px;color:var(--textMuted);margin-top:3px">${s} → ${e}</div>`;
+                })() : '<div style="font-size:11px;color:var(--textMuted)">No period set</div>'}
+              ` : `<div style="font-size:13px;color:var(--textMuted);font-weight:600">No cost set yet</div>`}
+            </div>
+            <button class="btn btn-green" id="editCostBtn" style="font-weight:800;white-space:nowrap">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              ${u.subscriptionCost && u.subscriptionCost > 0 ? 'Edit Cost' : 'Set Cost'}
+            </button>
+          </div>
+        </div>
+
         <!-- Danger Zone -->
         <div class="detail-section" style="border-color:rgba(239,68,68,0.3)">
           <div class="detail-section-title" style="color:#f87171"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Danger Zone</div>
@@ -854,13 +918,22 @@
 
         <!-- Send Popup Message -->
         <div class="detail-section" style="border-color:rgba(168,85,247,0.3)">
-          <div class="detail-section-title" style="color:#c084fc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Send Popup Message</div>
-          <select id="popupMsgType" style="width:100%;padding:9px 12px;border-radius:9px;border:1.5px solid rgba(110,90,175,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;margin-bottom:10px">
-            <option value="info">ℹ️ Info</option>
-            <option value="success">✅ Success</option>
-            <option value="warning">⚠️ Warning</option>
-            <option value="error">🚨 Alert</option>
-          </select>
+          <div class="detail-section-title" style="color:#c084fc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>Send Popup Message</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px" id="popupTypeGrid">
+            <button type="button" class="popup-type-btn active" data-type="info" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;border:1.5px solid rgba(96,165,250,0.5);background:rgba(59,130,246,0.15);color:#60a5fa;font-size:13px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:all 0.2s">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Info
+            </button>
+            <button type="button" class="popup-type-btn" data-type="success" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;border:1.5px solid rgba(52,211,153,0.3);background:rgba(16,185,129,0.08);color:#34d399;font-size:13px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:all 0.2s">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22,4 12,14.01 9,11.01"/></svg>Success
+            </button>
+            <button type="button" class="popup-type-btn" data-type="warning" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;border:1.5px solid rgba(251,191,36,0.3);background:rgba(245,158,11,0.08);color:#fbbf24;font-size:13px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:all 0.2s">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Warning
+            </button>
+            <button type="button" class="popup-type-btn" data-type="error" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:9px;border:1.5px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.08);color:#f87171;font-size:13px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;transition:all 0.2s">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>Alert
+            </button>
+          </div>
+          <input type="hidden" id="popupMsgType" value="info"/>
           <textarea id="popupMsgText" placeholder="Type your message... it will appear as a popup when this user next logs in." rows="3" style="width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid rgba(110,90,175,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:14px;font-weight:600;outline:none;resize:vertical;font-family:'Rajdhani',sans-serif;box-sizing:border-box;margin-bottom:10px"></textarea>
           <button class="btn btn-purple" id="sendPopupBtn" style="font-weight:800"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>Send to This User</button>
         </div>
@@ -912,6 +985,12 @@
         } catch(e) { showToast('❌ Failed: '+e.message,'error'); }
       };
 
+      const editCostBtn = document.getElementById('editCostBtn');
+      if (editCostBtn) editCostBtn.onclick = () => {
+        const u = state.selectedUser;
+        if (u) showSetCostModal(u.uid, u.displayName || u.email || 'User');
+      };
+
       const revokeBtn = document.getElementById('revokeBtn');
       if (revokeBtn) revokeBtn.onclick = revokeAccess;
 
@@ -923,6 +1002,18 @@
 
       const sendPopupBtn = document.getElementById('sendPopupBtn');
       if (sendPopupBtn) sendPopupBtn.onclick = () => sendPopupMessage(state.selectedUser.uid);
+
+      // Popup type button toggles
+      document.querySelectorAll('.popup-type-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.popup-type-btn').forEach(b => {
+            b.style.opacity = '0.55'; b.style.borderColor = b.style.borderColor.replace('0.5','0.25');
+          });
+          btn.style.opacity = '1'; btn.style.borderColor = btn.style.borderColor.replace('0.25','0.5');
+          const hidden = document.getElementById('popupMsgType');
+          if (hidden) hidden.value = btn.dataset.type;
+        };
+      });
 
       // Load message status for this user
       loadMessageStatus(state.selectedUser.uid);
@@ -1192,6 +1283,231 @@
     }
 
     // ============================================================
+    // SUBSCRIPTION REVENUE
+    // ============================================================
+
+    // Compute sub-rev data from state.users, filtered by date range
+    function getSubRevData() {
+      const from = state.subRevFrom ? new Date(state.subRevFrom + 'T00:00:00') : null;
+      const to   = state.subRevTo   ? new Date(state.subRevTo   + 'T23:59:59') : null;
+
+      const rows = state.users
+        .filter(u => u.subscriptionCost && u.subscriptionCost > 0 && u.subPeriodStart && u.subPeriodEnd)
+        .map(u => {
+          const start = u.subPeriodStart.toDate ? u.subPeriodStart.toDate() : new Date(u.subPeriodStart);
+          const end   = u.subPeriodEnd.toDate   ? u.subPeriodEnd.toDate()   : new Date(u.subPeriodEnd);
+          return { u, start, end, cost: Number(u.subscriptionCost) };
+        })
+        .filter(r => {
+          if (from && r.end < from) return false;
+          if (to   && r.start > to) return false;
+          return true;
+        });
+
+      const total = rows.reduce((s, r) => s + r.cost, 0);
+      return { rows, total };
+    }
+
+    function fmtMoney(n) { return '$' + Number(n).toFixed(2); }
+    function fmtDate(d) {
+      if (!d) return 'N/A';
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function renderSubRevPanel() {
+      const { rows, total } = getSubRevData();
+
+      const hasFilter = state.subRevFrom || state.subRevTo;
+      let rangeNote = '';
+      if (hasFilter) {
+        const f = state.subRevFrom ? new Date(state.subRevFrom).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : 'beginning';
+        const t = state.subRevTo   ? new Date(state.subRevTo).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})   : 'today';
+        rangeNote = `<span style="font-size:11px;color:var(--textMuted);display:block;margin-top:3px">From ${f} to ${t}</span>`;
+      } else {
+        rangeNote = `<span style="font-size:11px;color:var(--textMuted);display:block;margin-top:3px">All time</span>`;
+      }
+
+      const rowsHtml = rows.length === 0
+        ? `<div style="text-align:center;padding:28px;color:var(--textMuted);font-size:13px">No subscriptions in this date range</div>`
+        : rows.map(r => {
+            const timeLabel = (() => {
+              const ms = r.end - r.start;
+              const days = Math.round(ms / 86400000);
+              if (days <= 1) return '1 day';
+              if (days <= 7) return days + ' days';
+              if (days <= 31) return Math.round(days/7) + ' week' + (Math.round(days/7)>1?'s':'');
+              if (days <= 366) return Math.round(days/30) + ' month' + (Math.round(days/30)>1?'s':'');
+              return Math.round(days/365) + ' year' + (Math.round(days/365)>1?'s':'');
+            })();
+            return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:10px;background:rgba(20,16,44,0.55);border:1px solid rgba(110,90,175,0.2);margin-bottom:8px">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;overflow:hidden">
+                ${r.u.photoURL ? `<img src="${r.u.photoURL}" style="width:100%;height:100%;object-fit:cover" referrerpolicy="no-referrer"/>` : (r.u.displayName||r.u.email||'?')[0].toUpperCase()}
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:700;color:var(--textPrimary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.u.displayName||r.u.email||'Unknown'}</div>
+                ${r.u.gbUsername ? `<div style="font-size:11px;color:#22d3ee;font-weight:600">@${r.u.gbUsername}</div>` : ''}
+                <div style="font-size:11px;color:var(--textMuted);margin-top:1px">${fmtDate(r.start)} — ${fmtDate(r.end)} · ${timeLabel}</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-family:'Orbitron',monospace;font-size:15px;font-weight:800;color:#34d399">${fmtMoney(r.cost)}</div>
+              </div>
+              <button class="set-cost-btn" data-uid="${r.u.uid}" data-name="${(r.u.displayName||r.u.email||'User').replace(/"/g,'')}" style="padding:5px 9px;border-radius:7px;border:1px solid rgba(110,90,175,0.35);background:rgba(110,90,175,0.1);color:var(--purpleLight);font-size:11px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;flex-shrink:0">Edit</button>
+            </div>`;
+          }).join('');
+
+      // Also list users with NO cost set
+      const noCostUsers = state.users.filter(u => !u.subscriptionCost || u.subscriptionCost <= 0);
+      const noCostHtml = noCostUsers.length > 0
+        ? `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--glassBorder)">
+            <div style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">No Cost Set (${noCostUsers.length})</div>
+            ${noCostUsers.map(u => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(20,16,44,0.35);margin-bottom:6px">
+              <div style="font-size:13px;color:var(--textMuted);font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.displayName||u.email||'Unknown'}${u.gbUsername?` <span style="color:#22d3ee">@${u.gbUsername}</span>`:''}</div>
+              <button class="set-cost-btn" data-uid="${u.uid}" data-name="${(u.displayName||u.email||'User').replace(/"/g,'')}" style="padding:5px 9px;border-radius:7px;border:1px solid rgba(52,211,153,0.35);background:rgba(16,185,129,0.1);color:#34d399;font-size:11px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;flex-shrink:0">Set Cost</button>
+            </div>`).join('')}
+          </div>` : '';
+
+      return `<div id="subRevPanel" class="fade-in" style="margin-top:20px;border-radius:16px;background:var(--bgCard);border:1.5px solid rgba(52,211,153,0.3);overflow:hidden">
+        <!-- Header -->
+        <div style="padding:18px 20px 14px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(14,11,28,0.9));border-bottom:1px solid rgba(52,211,153,0.2)">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                <span style="font-family:'Orbitron',monospace;font-size:13px;font-weight:800;color:#34d399;letter-spacing:1px">SUBSCRIPTION REVENUE</span>
+              </div>
+              ${rangeNote}
+            </div>
+            <div style="text-align:right">
+              <div style="font-family:'Orbitron',monospace;font-size:26px;font-weight:900;color:#34d399">${fmtMoney(total)}</div>
+              <div style="font-size:11px;color:var(--textMuted);margin-top:1px">${rows.length} account${rows.length!==1?'s':''}</div>
+            </div>
+          </div>
+          <!-- Date range filters -->
+          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:140px">
+              <label style="font-size:11px;color:var(--textMuted);font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap">From</label>
+              <input type="date" id="subRevFrom" value="${state.subRevFrom}" style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid rgba(110,90,175,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;min-width:0"/>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:140px">
+              <label style="font-size:11px;color:var(--textMuted);font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap">To</label>
+              <input type="date" id="subRevTo" value="${state.subRevTo}" style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid rgba(110,90,175,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;min-width:0"/>
+            </div>
+            ${state.subRevFrom||state.subRevTo ? `<button onclick="state.subRevFrom='';state.subRevTo='';render();" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(110,90,175,0.3);background:transparent;color:var(--textMuted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap">Clear</button>` : ''}
+          </div>
+        </div>
+        <!-- Rows -->
+        <div style="padding:16px 20px">
+          ${rowsHtml}
+          ${noCostHtml}
+        </div>
+      </div>`;
+    }
+
+    // Modal to set/edit subscription cost for a user
+    function showSetCostModal(uid, displayName) {
+      const u = state.users.find(x => x.uid === uid);
+      if (!u) return;
+
+      let existing = document.getElementById('setCostModal');
+      if (existing) existing.remove();
+
+      const existingCost = u.subscriptionCost || '';
+      const existingStart = u.subPeriodStart ? (() => {
+        const d = u.subPeriodStart.toDate ? u.subPeriodStart.toDate() : new Date(u.subPeriodStart);
+        return d.toISOString().split('T')[0];
+      })() : '';
+      const existingEnd = u.subPeriodEnd ? (() => {
+        const d = u.subPeriodEnd.toDate ? u.subPeriodEnd.toDate() : new Date(u.subPeriodEnd);
+        return d.toISOString().split('T')[0];
+      })() : '';
+
+      const el = document.createElement('div');
+      el.id = 'setCostModal';
+      el.className = 'modal-overlay';
+      el.innerHTML = `
+        <div class="modal fade-in" style="max-width:420px">
+          <div class="modal-header" style="background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(14,11,28,0.9))">
+            <h3 style="font-family:'Orbitron',monospace;color:#34d399;font-size:14px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" style="vertical-align:-2px;margin-right:6px"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>Set Subscription Cost
+            </h3>
+            <button class="modal-close" id="setCostClose">✕</button>
+          </div>
+          <div class="modal-body">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:12px;border-radius:10px;background:rgba(20,16,44,0.5);border:1px solid rgba(110,90,175,0.2)">
+              <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7c3aed,#22d3ee);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;flex-shrink:0">
+                ${u.photoURL ? `<img src="${u.photoURL}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" referrerpolicy="no-referrer"/>` : (u.displayName||u.email||'?')[0].toUpperCase()}
+              </div>
+              <div>
+                <div style="font-size:14px;font-weight:700;color:var(--textPrimary)">${displayName}</div>
+                <div style="font-size:12px;color:var(--textMuted)">${u.email||''}</div>
+              </div>
+            </div>
+            <div style="margin-bottom:12px">
+              <label style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:6px">Subscription Cost (USD)</label>
+              <div style="position:relative">
+                <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--textMuted);font-size:15px;font-weight:700;pointer-events:none">$</span>
+                <input type="number" id="costInput" min="0" step="0.01" placeholder="0.00" value="${existingCost}" style="width:100%;padding:10px 14px 10px 26px;border-radius:10px;border:1.5px solid rgba(110,90,175,0.45);background:var(--bgInput);color:var(--textPrimary);font-size:15px;font-weight:700;outline:none;font-family:'Rajdhani',sans-serif;box-sizing:border-box"/>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+              <div>
+                <label style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:6px">Period Start</label>
+                <input type="date" id="costStart" value="${existingStart}" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(110,90,175,0.45);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif"/>
+              </div>
+              <div>
+                <label style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:6px">Period End</label>
+                <input type="date" id="costEnd" value="${existingEnd}" style="width:100%;padding:9px 12px;border-radius:10px;border:1.5px solid rgba(110,90,175,0.45);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif"/>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-green" id="saveCostBtn" style="font-weight:800;flex:1;justify-content:center">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17,21 17,13 7,13 7,21"/><polyline points="7,3 7,8 15,8"/></svg>Save
+              </button>
+              ${existingCost ? `<button class="btn btn-red" id="clearCostBtn" style="font-weight:700">Remove</button>` : ''}
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+
+      el.onclick = (e) => { if (e.target === el) el.remove(); };
+      document.getElementById('setCostClose').onclick = () => el.remove();
+
+      document.getElementById('saveCostBtn').onclick = async () => {
+        const cost = parseFloat(document.getElementById('costInput')?.value);
+        const startVal = document.getElementById('costStart')?.value;
+        const endVal   = document.getElementById('costEnd')?.value;
+        if (!cost || cost <= 0) { showToast('Enter a valid cost', 'error'); return; }
+        if (!startVal || !endVal) { showToast('Select a period start and end', 'error'); return; }
+        if (new Date(startVal) > new Date(endVal)) { showToast('Start must be before end', 'error'); return; }
+        const btn = document.getElementById('saveCostBtn');
+        btn.disabled = true; btn.textContent = 'Saving...';
+        try {
+          await db.collection('userAccess').doc(uid).update({
+            subscriptionCost: cost,
+            subPeriodStart: firebase.firestore.Timestamp.fromDate(new Date(startVal + 'T00:00:00')),
+            subPeriodEnd:   firebase.firestore.Timestamp.fromDate(new Date(endVal   + 'T23:59:59')),
+          });
+          showToast('✅ Subscription cost saved', 'success');
+          el.remove();
+        } catch(e) { showToast('❌ Failed: ' + e.message, 'error'); btn.disabled=false; btn.textContent='Save'; }
+      };
+
+      const clearBtn = document.getElementById('clearCostBtn');
+      if (clearBtn) clearBtn.onclick = async () => {
+        if (!confirm('Remove subscription cost for this user?')) return;
+        try {
+          await db.collection('userAccess').doc(uid).update({
+            subscriptionCost: firebase.firestore.FieldValue.delete(),
+            subPeriodStart:   firebase.firestore.FieldValue.delete(),
+            subPeriodEnd:     firebase.firestore.FieldValue.delete(),
+          });
+          showToast('Cost removed', 'success');
+          el.remove();
+        } catch(e) { showToast('❌ Failed: ' + e.message, 'error'); }
+      };
+    }
+
+    // ============================================================
     // POPUP MESSAGE SYSTEM
     // ============================================================
 
@@ -1246,7 +1562,7 @@
             </select>
             <textarea id="broadcastMsgText" placeholder="Type your broadcast message here..." rows="4" style="width:100%;padding:10px 13px;border-radius:10px;border:1px solid rgba(90,75,145,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:14px;font-weight:600;outline:none;resize:vertical;font-family:'Rajdhani',sans-serif;box-sizing:border-box;margin-bottom:14px"></textarea>
             <div style="display:flex;gap:8px">
-              <button class="btn btn-purple" id="broadcastSendBtn" style="font-weight:800;flex:1;justify-content:center;display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Send to All</button>
+              <button class="btn btn-purple" id="broadcastSendBtn" style="font-weight:800;flex:1;justify-content:center;display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>Send to All</button>
               <button class="btn btn-red" id="broadcastCancelBtn" style="font-weight:700;white-space:nowrap">Cancel</button>
             </div>
           </div>
@@ -1256,6 +1572,16 @@
       document.getElementById('broadcastModalClose').onclick = () => el.remove();
       document.getElementById('broadcastCancelBtn').onclick = () => el.remove();
       el.onclick = (e) => { if (e.target === el) el.remove(); };
+
+      // Broadcast type button toggles
+      el.querySelectorAll('.bcast-type-btn').forEach(btn => {
+        btn.onclick = () => {
+          el.querySelectorAll('.bcast-type-btn').forEach(b => b.style.opacity = '0.55');
+          btn.style.opacity = '1';
+          const hidden = el.querySelector('#broadcastMsgType');
+          if (hidden) hidden.value = btn.dataset.type;
+        };
+      });
 
       document.getElementById('broadcastSendBtn').onclick = async () => {
         const msgText = (document.getElementById('broadcastMsgText')?.value || '').trim();
@@ -1278,7 +1604,7 @@
           showToast('✅ Broadcast sent to all users!', 'success');
         } catch(e) {
           showToast('❌ Failed: ' + e.message, 'error');
-          if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Send to All Users'; }
+          if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/></svg>Send to All Users'; }
         }
       };
     }
