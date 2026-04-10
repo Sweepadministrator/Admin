@@ -644,6 +644,7 @@
           </div>
           <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
             <span style="font-size:12px;color:var(--textMuted)">${state.filteredUsers.length} user${state.filteredUsers.length !== 1 ? 's' : ''}${state.activeFilter !== 'all' ? ' · ' + state.activeFilter : ''}</span>
+            <button class="btn btn-purple" id="broadcastAllBtn" style="font-size:11px;padding:7px 13px;font-weight:800"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-1px;margin-right:4px"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Broadcast to All</button>
           </div>
           <div id="userList">
             ${list || '<div style="text-align:center;padding:40px;color:var(--textMuted);font-size:14px">No users found</div>'}
@@ -694,6 +695,9 @@
       // Lazy load more
       const loadMore = document.getElementById('loadMoreBtn');
       if (loadMore) loadMore.onclick = () => { state.displayCount += 20; render(); };
+      // Broadcast to all
+      const broadcastAllBtn = document.getElementById('broadcastAllBtn');
+      if (broadcastAllBtn) broadcastAllBtn.onclick = () => showBroadcastAllModal();
       // User clicks
       document.querySelectorAll('.user-item').forEach(el => {
         el.onclick = () => {
@@ -786,6 +790,7 @@
             <div style="margin-bottom:16px"><div style="font-size:12px;color:#22d3ee;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Custom Days</div><div style="display:flex;gap:8px"><input type="number" id="customDays" min="1" max="3650" placeholder="Enter days..." style="flex:1;padding:11px 14px;border-radius:10px;border:1px solid rgba(90,75,145,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:15px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif" /><button class="btn btn-orange" id="customExtendBtn" style="font-weight:800;font-size:14px">Add</button></div></div>
             <div style="border-top:1px solid rgba(239,68,68,0.15);padding-top:16px"><div style="font-size:12px;color:#f87171;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Danger Zone</div><div class="btn-row"><button class="btn btn-red" id="revokeBtn" style="font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>Revoke Access</button><button class="btn btn-red" id="deleteAccountBtn" style="font-weight:800;background:rgba(239,68,68,0.18);border-color:rgba(239,68,68,0.5)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="17" y1="11" x2="23" y2="11"/></svg>Delete Account</button></div></div>
             <div style="border-top:1px solid rgba(59,130,246,0.15);padding-top:16px;margin-top:16px"><div style="font-size:12px;color:var(--blue);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Data Export</div><div class="btn-row"><button class="btn btn-blue" id="downloadDataBtn" style="font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download User Data</button></div></div>
+            <div style="border-top:1px solid rgba(168,85,247,0.2);padding-top:16px;margin-top:16px"><div style="font-size:12px;color:#c084fc;margin-bottom:10px;text-transform:uppercase;letter-spacing:1px;font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c084fc" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Send Popup Message</div><div style="margin-bottom:8px"><select id="popupMsgType" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(90,75,145,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;margin-bottom:8px"><option value="info">ℹ️ Info</option><option value="success">✅ Success</option><option value="warning">⚠️ Warning</option><option value="error">🚨 Alert</option></select><textarea id="popupMsgText" placeholder="Type your message here... it will appear as a popup when this user next logs in." rows="3" style="width:100%;padding:10px 13px;border-radius:10px;border:1px solid rgba(90,75,145,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:14px;font-weight:600;outline:none;resize:vertical;font-family:'Rajdhani',sans-serif;box-sizing:border-box"></textarea></div><div class="btn-row"><button class="btn btn-purple" id="sendPopupBtn" style="font-weight:800"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>Send to This User</button></div></div>
           </div>
         </div>`;
       document.body.appendChild(overlay);
@@ -859,6 +864,9 @@
 
       const downloadBtn = document.getElementById('downloadDataBtn');
       if (downloadBtn) downloadBtn.onclick = downloadUserData;
+
+      const sendPopupBtn = document.getElementById('sendPopupBtn');
+      if (sendPopupBtn) sendPopupBtn.onclick = () => sendPopupMessage(state.selectedUser.uid);
     }
 
     function closeModal() {
@@ -1090,6 +1098,96 @@
           downloadBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download User Data';
         }
       }
+    }
+
+    // ============================================================
+    // POPUP MESSAGE SYSTEM
+    // ============================================================
+
+    // Send a popup message to a single user
+    async function sendPopupMessage(uid) {
+      const msgText = (document.getElementById('popupMsgText')?.value || '').trim();
+      const msgType = document.getElementById('popupMsgType')?.value || 'info';
+      if (!msgText) { showToast('⚠️ Please enter a message', 'error'); return; }
+
+      const btn = document.getElementById('sendPopupBtn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+      try {
+        await db.collection('popupMessages').add({
+          targetUid: uid,
+          targetAll: false,
+          message: msgText,
+          type: msgType,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          read: false,
+          sentBy: state.user?.email || 'admin'
+        });
+        showToast('✅ Popup message sent!', 'success');
+        if (document.getElementById('popupMsgText')) document.getElementById('popupMsgText').value = '';
+      } catch(e) {
+        showToast('❌ Failed: ' + e.message, 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>Send to This User'; }
+      }
+    }
+
+    // Show broadcast-to-all modal
+    function showBroadcastAllModal() {
+      let existing = document.getElementById('broadcastAllModal');
+      if (existing) existing.remove();
+      const el = document.createElement('div');
+      el.id = 'broadcastAllModal';
+      el.className = 'modal-overlay';
+      el.innerHTML = `
+        <div class="modal fade-in" style="max-width:460px">
+          <div class="modal-header" style="background:linear-gradient(135deg,rgba(168,85,247,0.12),rgba(124,58,237,0.08))">
+            <h3 style="font-family:'Orbitron',monospace;color:#c084fc;font-size:15px">📢 Broadcast to All Users</h3>
+            <button class="modal-close" id="broadcastModalClose">✕</button>
+          </div>
+          <div class="modal-body">
+            <p style="font-size:13px;color:var(--textMuted);margin-bottom:16px">This message will appear as a popup to <strong style="color:#c084fc">every user</strong> when they next log into GameBill.</p>
+            <select id="broadcastMsgType" style="width:100%;padding:9px 12px;border-radius:9px;border:1px solid rgba(90,75,145,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;margin-bottom:10px">
+              <option value="info">ℹ️ Info</option>
+              <option value="success">✅ Success</option>
+              <option value="warning">⚠️ Warning</option>
+              <option value="error">🚨 Alert</option>
+            </select>
+            <textarea id="broadcastMsgText" placeholder="Type your broadcast message here..." rows="4" style="width:100%;padding:10px 13px;border-radius:10px;border:1px solid rgba(90,75,145,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:14px;font-weight:600;outline:none;resize:vertical;font-family:'Rajdhani',sans-serif;box-sizing:border-box;margin-bottom:14px"></textarea>
+            <div class="btn-row">
+              <button class="btn btn-purple" id="broadcastSendBtn" style="font-weight:800;flex:1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Send to All Users</button>
+              <button class="btn btn-red" id="broadcastCancelBtn" style="font-weight:700">Cancel</button>
+            </div>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+
+      document.getElementById('broadcastModalClose').onclick = () => el.remove();
+      document.getElementById('broadcastCancelBtn').onclick = () => el.remove();
+      el.onclick = (e) => { if (e.target === el) el.remove(); };
+
+      document.getElementById('broadcastSendBtn').onclick = async () => {
+        const msgText = (document.getElementById('broadcastMsgText')?.value || '').trim();
+        const msgType = document.getElementById('broadcastMsgType')?.value || 'info';
+        if (!msgText) { showToast('⚠️ Please enter a message', 'error'); return; }
+        const btn = document.getElementById('broadcastSendBtn');
+        if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+        try {
+          await db.collection('popupMessages').add({
+            targetUid: null,
+            targetAll: true,
+            message: msgText,
+            type: msgType,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            read: false,
+            sentBy: state.user?.email || 'admin'
+          });
+          el.remove();
+          showToast('✅ Broadcast sent to all users!', 'success');
+        } catch(e) {
+          showToast('❌ Failed: ' + e.message, 'error');
+          if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M22 17H2a3 3 0 000 6h20a3 3 0 000-6z"/><path d="M10 7a2 2 0 114 0L12 17z"/></svg>Send to All Users'; }
+        }
+      };
     }
 
     // ============================================================
