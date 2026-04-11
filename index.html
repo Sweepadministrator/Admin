@@ -309,6 +309,16 @@
     .detail-info-row { display:flex; flex-direction:column; gap:2px; padding:10px 12px; border-radius:10px; background:rgba(30,24,56,0.55); border:1px solid rgba(110,90,175,0.22); }
     .detail-info-label { font-size:10px; color:var(--textMuted); text-transform:uppercase; letter-spacing:1px; font-weight:700; }
     .detail-info-value { font-size:13px; color:var(--textPrimary); font-weight:600; word-break:break-all; }
+    .detail-username { font-size:18px; font-weight:800; color:var(--textPrimary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .detail-useremail { font-size:13px; color:var(--textSecondary); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+    .detail-gbuser { font-size:14px; color:#22d3ee; font-weight:700; margin-top:3px; }
+    @media (max-width: 480px) {
+      .detail-username { font-size:15px; }
+      .detail-useremail { font-size:11px; }
+      .detail-gbuser { font-size:12px; }
+      .user-detail-page { padding:14px 12px; }
+      .detail-section { padding:14px 14px; }
+    }
 
     .toast {
       position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
@@ -654,7 +664,7 @@
           <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Revenue</div>
 
           <!-- Revenue summary mini card -->
-          <div style="border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(14,11,28,0.8));border:1.5px solid rgba(52,211,153,0.3);padding:12px 14px;margin-bottom:8px">
+          <div style="border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.18) 0%,rgba(6,182,212,0.10) 50%,rgba(124,58,237,0.12) 100%);border:1.5px solid rgba(52,211,153,0.45);padding:12px 14px;margin-bottom:8px;box-shadow:0 4px 18px rgba(16,185,129,0.1),inset 0 1px 0 rgba(255,255,255,0.04)">
             <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Total Subscriptions</div>
             <div style="font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:#34d399">$${revTotal.toFixed(2)}</div>
             <div style="font-size:11px;color:var(--textMuted);margin-top:2px">${revRows.length} paid account${revRows.length!==1?'s':''}</div>
@@ -662,7 +672,7 @@
           </div>
 
           <!-- Navigate to full revenue page -->
-          <div class="stat-chip" id="subRevChip" style="cursor:pointer">
+          <div class="stat-chip sub-rev-nav-chip" style="cursor:pointer;border:1.5px solid rgba(52,211,153,0.5);background:rgba(16,185,129,0.08);transition:all 0.2s;" onmouseover="this.style.background='rgba(16,185,129,0.16)';this.style.borderColor='rgba(52,211,153,0.75)'" onmouseout="this.style.background='rgba(16,185,129,0.08)';this.style.borderColor='rgba(52,211,153,0.5)'">
             <div style="display:flex;align-items:center;gap:8px;width:100%">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" style="flex-shrink:0"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
               <div style="flex:1">
@@ -753,6 +763,7 @@
       // Stat chip filters (both desktop and mobile)
       document.querySelectorAll('.stat-chip').forEach(chip => {
         chip.onclick = () => {
+          if (!chip.dataset.filter) return; // skip non-filter chips (e.g. sub-rev nav)
           state.activeFilter = chip.dataset.filter;
           filterUsers();
           // Close mobile sidebar if open
@@ -782,12 +793,19 @@
       // Broadcast to all
       const broadcastAllBtn = document.getElementById('broadcastAllBtn');
       if (broadcastAllBtn) broadcastAllBtn.onclick = () => showBroadcastAllModal();
-      // Subscription Revenue chip → navigate to full page
-      const subRevChip = document.getElementById('subRevChip');
-      if (subRevChip) subRevChip.onclick = () => {
-        state.view = 'subRevPage';
-        render();
-      };
+      // Subscription Revenue chip → navigate to full page (both mobile + desktop sidebars)
+      document.querySelectorAll('.sub-rev-nav-chip').forEach(chip => {
+        chip.onclick = (e) => {
+          e.stopPropagation();
+          state.view = 'subRevPage';
+          // Close mobile sidebar if open
+          const ms = document.getElementById('mobileSidebar');
+          const mo = document.getElementById('mobileSidebarOverlay');
+          if (ms) ms.classList.remove('open');
+          if (mo) mo.classList.remove('open');
+          render();
+        };
+      });
       // Sub-rev date filters
       // Sub-rev set cost buttons
       document.querySelectorAll('.set-cost-btn').forEach(btn => {
@@ -850,17 +868,25 @@
 
         <!-- Profile Card -->
         <div class="detail-section" style="background:linear-gradient(135deg,rgba(124,58,237,0.1),rgba(14,11,28,0.95));border-color:rgba(124,58,237,0.35)">
-          <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <!-- Row 1: avatar + name info -->
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
             ${avatar}
             <div style="flex:1;min-width:0">
-              <div style="font-size:20px;font-weight:800;color:var(--textPrimary);margin-bottom:2px">${u.displayName || 'No Name'}</div>
-              <div style="font-size:13px;color:var(--textSecondary);font-weight:600;margin-bottom:4px">${u.email || ''}</div>
-              ${u.gbUsername ? '<div style="font-size:14px;color:#22d3ee;font-weight:700">@' + u.gbUsername + '</div>' : '<div style="font-size:12px;color:#f87171;font-weight:600">No username set</div>'}
+              <div class="detail-username">${u.displayName || 'No Name'}</div>
+              <div class="detail-useremail">${u.email || ''}</div>
+              ${u.gbUsername ? '<div class="detail-gbuser">@' + u.gbUsername + '</div>' : '<div style="font-size:11px;color:#f87171;font-weight:600;margin-top:2px">No username set</div>'}
             </div>
-            <div style="text-align:center;padding:14px 20px;border-radius:12px;background:rgba(20,16,40,0.6);border:1.5px solid rgba(130,105,215,0.3);min-width:100px">
-              <div style="font-family:'Orbitron',monospace;font-size:28px;font-weight:900;color:${status.color}">${isUnlimited ? '∞' : (daysLeft !== null ? daysLeft : '0')}</div>
-              <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:2px">${isUnlimited ? 'Unlimited' : 'Days Left'}</div>
-              <span class="user-status ${status.cls}" style="margin-top:6px;display:inline-block">${status.label}</span>
+          </div>
+          <!-- Row 2: days left + status (full width row) -->
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:10px;background:rgba(20,16,40,0.6);border:1.5px solid rgba(130,105,215,0.3);flex:1;min-width:120px">
+              <div>
+                <div style="font-family:'Orbitron',monospace;font-size:24px;font-weight:900;color:${status.color};line-height:1">${isUnlimited ? '∞' : (daysLeft !== null ? daysLeft : '0')}</div>
+                <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-top:2px">${isUnlimited ? 'Unlimited' : 'Days Left'}</div>
+              </div>
+            </div>
+            <div style="padding:10px 16px;border-radius:10px;background:rgba(20,16,40,0.6);border:1.5px solid rgba(130,105,215,0.3);flex:1;min-width:120px;display:flex;align-items:center;justify-content:center">
+              <span class="user-status ${status.cls}" style="font-size:13px;padding:5px 14px">${status.label}</span>
             </div>
           </div>
         </div>
@@ -988,13 +1014,11 @@
       if (trialBtn) trialBtn.onclick = async () => {
         const u = state.selectedUser; if (!u) return;
         try {
-          const trialStart = new Date();
           const newExpiry = new Date(Date.now() + 3*24*60*60*1000);
           await db.collection('userAccess').doc(u.uid).update({
             expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry),
             isDisabled: false,
-            subPeriodStart: firebase.firestore.Timestamp.fromDate(trialStart),
-            subPeriodEnd:   firebase.firestore.Timestamp.fromDate(newExpiry),
+            // Free trial: no subscription charge, period not set automatically
           });
           showToast('🎁 Free trial activated (3 days)', 'success');
           const updated = state.users.find(x=>x.uid===u.uid); if (updated) state.selectedUser=updated;
@@ -1006,13 +1030,11 @@
       if (unlimitedBtn) unlimitedBtn.onclick = async () => {
         const u = state.selectedUser; if (!u) return;
         try {
-          const unlimStart = new Date();
           const newExpiry = new Date(Date.now() + 100*365*24*60*60*1000);
           await db.collection('userAccess').doc(u.uid).update({
             expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry),
             isDisabled: false,
-            subPeriodStart: firebase.firestore.Timestamp.fromDate(unlimStart),
-            subPeriodEnd:   firebase.firestore.Timestamp.fromDate(newExpiry),
+            // Unlimited: no subscription period auto-set, set cost manually
           });
           showToast('♾️ Unlimited access granted','success');
           closeUserDetail();
@@ -1118,7 +1140,7 @@
           subPeriodEnd:   endTs,
         });
 
-        showToast(`✅ Extended by ${days} days`, 'success');
+        showToast(`✅ Extended by ${days} days — set subscription cost in the user's profile`, 'success');
         closeUserDetail();
       } catch(e) {
         showToast('❌ Failed: ' + e.message, 'error');
@@ -1330,8 +1352,9 @@
       const from = state.subRevFrom ? new Date(state.subRevFrom + 'T00:00:00') : null;
       const to   = state.subRevTo   ? new Date(state.subRevTo   + 'T23:59:59') : null;
 
+      // Include all users with a subscription period set (cost may be 0 if not yet assigned)
       const rows = state.users
-        .filter(u => u.subscriptionCost && u.subscriptionCost > 0 && u.subPeriodStart && u.subPeriodEnd)
+        .filter(u => u.subPeriodStart && u.subPeriodEnd && u.subscriptionCost && u.subscriptionCost > 0)
         .map(u => {
           const start = u.subPeriodStart.toDate ? u.subPeriodStart.toDate() : new Date(u.subPeriodStart);
           const end   = u.subPeriodEnd.toDate   ? u.subPeriodEnd.toDate()   : new Date(u.subPeriodEnd);
@@ -1411,7 +1434,7 @@
         </div>
 
         <!-- Summary card -->
-        <div style="border-radius:16px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(14,11,28,0.95));border:1.5px solid rgba(52,211,153,0.35);padding:20px 22px;margin-bottom:16px">
+        <div style="border-radius:16px;background:linear-gradient(135deg,rgba(16,185,129,0.18) 0%,rgba(6,182,212,0.10) 50%,rgba(124,58,237,0.14) 100%);border:1.5px solid rgba(52,211,153,0.45);padding:20px 22px;margin-bottom:16px;box-shadow:0 8px 32px rgba(16,185,129,0.12),inset 0 1px 0 rgba(255,255,255,0.05)">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px">
             <div>
               <div style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:6px">Total Revenue</div>
@@ -1488,14 +1511,18 @@
       if (existing) existing.remove();
 
       const existingCost = u.subscriptionCost || '';
+      // Auto-populate period: use existing subPeriod, or fall back to expiryDate
       const existingStart = u.subPeriodStart ? (() => {
         const d = u.subPeriodStart.toDate ? u.subPeriodStart.toDate() : new Date(u.subPeriodStart);
         return d.toISOString().split('T')[0];
-      })() : '';
+      })() : new Date().toISOString().split('T')[0]; // default to today
       const existingEnd = u.subPeriodEnd ? (() => {
         const d = u.subPeriodEnd.toDate ? u.subPeriodEnd.toDate() : new Date(u.subPeriodEnd);
         return d.toISOString().split('T')[0];
-      })() : '';
+      })() : (u.expiryDate ? (() => {
+        const d = u.expiryDate.toDate ? u.expiryDate.toDate() : new Date(u.expiryDate);
+        return d.toISOString().split('T')[0];
+      })() : ''); // fall back to access expiry date
 
       const el = document.createElement('div');
       el.id = 'setCostModal';
