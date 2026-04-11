@@ -213,12 +213,17 @@
     .stat-label { font-size:11px; color:var(--textSecondary); text-transform:uppercase; letter-spacing:1px; font-weight:700; }
 
     .user-item {
-      display:flex; align-items:center; gap:14px;
-      padding:15px 18px; border-radius:12px;
+      display:flex; align-items:center; gap:12px;
+      padding:14px 16px; border-radius:12px;
       border:1.5px solid rgba(130,105,215,0.3); background:var(--bgCard);
       margin-bottom:10px; transition: all 0.2s; cursor:pointer;
+      min-width:0;
     }
     .user-item:hover { border-color: rgba(124,58,237,0.55); background:var(--glassHover); }
+    .user-item-status {
+      text-align:right; flex-shrink:0; min-width:0;
+      display:flex; flex-direction:column; align-items:flex-end; gap:2px;
+    }
     .user-avatar {
       width:40px; height:40px; border-radius:50%;
       background: linear-gradient(135deg, var(--purple), var(--cyan));
@@ -227,7 +232,7 @@
       overflow:hidden;
     }
     .user-avatar img { width:100%; height:100%; object-fit:cover; }
-    .user-info { flex:1; min-width:0; }
+    .user-info { flex:1; min-width:0; overflow:hidden; }
     .user-name {
       font-size:15px; font-weight:700; color:var(--textPrimary);
       white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -322,7 +327,17 @@
       .btn-row { flex-direction:column; }
       .btn-row .btn { width:100%; text-align:center; justify-content:center; }
       .stats-row { grid-template-columns: repeat(2, 1fr); }
-      .user-item { padding:12px; gap:10px; }
+      .user-item { padding:10px 12px; gap:8px; }
+      .user-name { font-size:13px; }
+      .user-email { font-size:11px; }
+      .user-item-status .user-status { font-size:10px; padding:2px 7px; }
+    }
+    @media (max-width: 380px) {
+      /* Very narrow phones: stack status below info */
+      .user-item { flex-wrap:wrap; }
+      .user-avatar { width:34px; height:34px; font-size:14px; }
+      .user-info { flex:1; min-width:calc(100% - 54px); }
+      .user-item-status { flex-direction:row; align-items:center; gap:8px; width:100%; padding-left:42px; margin-top:4px; }
     }
 
     /* MOBILE READABILITY */
@@ -408,9 +423,9 @@
       modalOpen: false,
       activeFilter: 'all', // all, active, expired, disabled, noAccess
       displayCount: 20, // lazy loading batch size
-      subRevView: false,        // show subscription revenue panel
-      subRevFrom: '',           // date filter from
-      subRevTo: '',             // date filter to
+      subRevPage: false,        // full-page subscription revenue view
+      subRevFrom: '',
+      subRevTo: '',
     };
     
     function openUserDetail(uid) {
@@ -501,6 +516,7 @@
         case 'denied': app.innerHTML = renderDenied(); break;
         case 'dashboard': app.innerHTML = renderHeader() + renderDashboard(); bindDashboard(); break;
         case 'userDetail': app.innerHTML = renderHeader() + renderUserDetailPage(); bindUserDetailPage(); break;
+        case 'subRevPage': app.innerHTML = renderHeader() + renderSubRevFullPage(); bindSubRevPage(); break;
       }
     }
 
@@ -625,6 +641,10 @@
         { key:'disabled', label:'Disabled', num:c.disabled, color:'var(--textMuted)' },
         { key:'noAccess', label:'No Access', num:c.noAccess, color:'#fbbf24' },
       ];
+
+      // Compute revenue total for mini card
+      const { rows: revRows, total: revTotal } = getSubRevData();
+
       return chips.map(ch => `
         <div class="stat-chip ${f===ch.key?'active':''}" data-filter="${ch.key}">
           <div class="stat-chip-num" style="color:${ch.color}">${ch.num}</div>
@@ -632,14 +652,27 @@
         </div>`).join('') +
         `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--glassBorder)">
           <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">Revenue</div>
-          <div class="stat-chip ${state.subRevView?'active':''}" id="subRevChip" style="border-color:${state.subRevView?'rgba(16,185,129,0.5)':'transparent'};background:${state.subRevView?'rgba(16,185,129,0.1)':'transparent'}">
-            <div style="display:flex;align-items:center;gap:8px">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              <div>
-                <div style="font-size:13px;font-weight:700;color:#34d399">Subscription Revenue</div>
+
+          <!-- Revenue summary mini card -->
+          <div style="border-radius:12px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(14,11,28,0.8));border:1.5px solid rgba(52,211,153,0.3);padding:12px 14px;margin-bottom:8px">
+            <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Total Subscriptions</div>
+            <div style="font-family:'Orbitron',monospace;font-size:20px;font-weight:900;color:#34d399">$${revTotal.toFixed(2)}</div>
+            <div style="font-size:11px;color:var(--textMuted);margin-top:2px">${revRows.length} paid account${revRows.length!==1?'s':''}</div>
+            ${state.subRevFrom||state.subRevTo ? `<div style="font-size:10px;color:rgba(52,211,153,0.6);margin-top:3px;font-style:italic">${state.subRevFrom?new Date(state.subRevFrom).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'–'} → ${state.subRevTo?new Date(state.subRevTo).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'–'}</div>` : '<div style="font-size:10px;color:rgba(52,211,153,0.5);margin-top:3px">All time</div>'}
+          </div>
+
+          <!-- Navigate to full revenue page -->
+          <div class="stat-chip" id="subRevChip" style="cursor:pointer">
+            <div style="display:flex;align-items:center;gap:8px;width:100%">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2" style="flex-shrink:0"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              <div style="flex:1">
+                <div style="font-size:13px;font-weight:700;color:#34d399">View Details</div>
+                <div style="font-size:10px;color:var(--textMuted)">Subscription breakdown</div>
               </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--textMuted)" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
             </div>
           </div>
+
           <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--glassBorder)">
             <div style="font-size:10px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:6px">Admin</div>
             <div style="font-size:12px;color:var(--textSecondary);line-height:1.8;margin-bottom:12px">${state.user?.email || ''}</div>
@@ -667,8 +700,8 @@
             <div class="user-email">${u.email || 'No Email'}</div>
             ${u.gbUsername ? '<div style="font-size:11px;color:#22d3ee;font-weight:600;margin-top:1px">@' + u.gbUsername + '</div>' : ''}
           </div>
-          <div style="text-align:right">
-            ${daysLeft !== null && daysLeft > 0 ? `<div style="font-family:'Orbitron',monospace;font-size:14px;color:${status.color};margin-bottom:2px">${daysLeft}d</div>` : ''}
+          <div class="user-item-status">
+            ${daysLeft !== null && daysLeft > 0 ? `<div style="font-family:'Orbitron',monospace;font-size:13px;color:${status.color};margin-bottom:2px;white-space:nowrap">${daysLeft}d</div>` : ''}
             <span class="user-status ${status.cls}">${status.label}</span>
           </div>
         </div>`;
@@ -701,7 +734,6 @@
             ${list || '<div style="text-align:center;padding:40px;color:var(--textMuted);font-size:14px">No users found</div>'}
           </div>
           ${hasMore ? '<div id="loadMoreBtn" style="text-align:center;padding:16px"><button class="btn btn-purple" style="width:100%;max-width:300px">Load more (' + (state.filteredUsers.length - state.displayCount) + ' remaining)</button></div>' : ''}
-          ${state.subRevView ? renderSubRevPanel() : ''}
         </div>
       </div>`;
     }
@@ -750,23 +782,13 @@
       // Broadcast to all
       const broadcastAllBtn = document.getElementById('broadcastAllBtn');
       if (broadcastAllBtn) broadcastAllBtn.onclick = () => showBroadcastAllModal();
-      // Subscription Revenue chip
+      // Subscription Revenue chip → navigate to full page
       const subRevChip = document.getElementById('subRevChip');
       if (subRevChip) subRevChip.onclick = () => {
-        state.subRevView = !state.subRevView;
+        state.view = 'subRevPage';
         render();
-        if (state.subRevView) {
-          setTimeout(() => {
-            const el = document.getElementById('subRevPanel');
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 80);
-        }
       };
       // Sub-rev date filters
-      const srFrom = document.getElementById('subRevFrom');
-      const srTo = document.getElementById('subRevTo');
-      if (srFrom) srFrom.onchange = (e) => { state.subRevFrom = e.target.value; render(); };
-      if (srTo) srTo.onchange = (e) => { state.subRevTo = e.target.value; render(); };
       // Sub-rev set cost buttons
       document.querySelectorAll('.set-cost-btn').forEach(btn => {
         btn.onclick = (e) => {
@@ -966,8 +988,14 @@
       if (trialBtn) trialBtn.onclick = async () => {
         const u = state.selectedUser; if (!u) return;
         try {
+          const trialStart = new Date();
           const newExpiry = new Date(Date.now() + 3*24*60*60*1000);
-          await db.collection('userAccess').doc(u.uid).update({ expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry), isDisabled: false });
+          await db.collection('userAccess').doc(u.uid).update({
+            expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry),
+            isDisabled: false,
+            subPeriodStart: firebase.firestore.Timestamp.fromDate(trialStart),
+            subPeriodEnd:   firebase.firestore.Timestamp.fromDate(newExpiry),
+          });
           showToast('🎁 Free trial activated (3 days)', 'success');
           const updated = state.users.find(x=>x.uid===u.uid); if (updated) state.selectedUser=updated;
           closeUserDetail();
@@ -978,8 +1006,14 @@
       if (unlimitedBtn) unlimitedBtn.onclick = async () => {
         const u = state.selectedUser; if (!u) return;
         try {
+          const unlimStart = new Date();
           const newExpiry = new Date(Date.now() + 100*365*24*60*60*1000);
-          await db.collection('userAccess').doc(u.uid).update({ expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry), isDisabled: false });
+          await db.collection('userAccess').doc(u.uid).update({
+            expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry),
+            isDisabled: false,
+            subPeriodStart: firebase.firestore.Timestamp.fromDate(unlimStart),
+            subPeriodEnd:   firebase.firestore.Timestamp.fromDate(newExpiry),
+          });
           showToast('♾️ Unlimited access granted','success');
           closeUserDetail();
         } catch(e) { showToast('❌ Failed: '+e.message,'error'); }
@@ -1067,16 +1101,21 @@
       try {
         const now = new Date();
         let base = now;
-        // If user already has a future expiry, extend from that date
         if (u.expiryDate) {
           const existing = u.expiryDate.toDate();
           if (existing > now) base = existing;
         }
         const newExpiry = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
 
+        // Auto-set subscription period to match the access period
+        const startTs = firebase.firestore.Timestamp.fromDate(base);
+        const endTs   = firebase.firestore.Timestamp.fromDate(newExpiry);
+
         await db.collection('userAccess').doc(u.uid).update({
-          expiryDate: firebase.firestore.Timestamp.fromDate(newExpiry),
-          isDisabled: false,
+          expiryDate:     firebase.firestore.Timestamp.fromDate(newExpiry),
+          isDisabled:     false,
+          subPeriodStart: startTs,
+          subPeriodEnd:   endTs,
         });
 
         showToast(`✅ Extended by ${days} days`, 'success');
@@ -1314,7 +1353,7 @@
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
-    function renderSubRevPanel() {
+    function renderSubRevFullPage() {
       const { rows, total } = getSubRevData();
 
       const hasFilter = state.subRevFrom || state.subRevTo;
@@ -1357,50 +1396,87 @@
 
       // Also list users with NO cost set
       const noCostUsers = state.users.filter(u => !u.subscriptionCost || u.subscriptionCost <= 0);
-      const noCostHtml = noCostUsers.length > 0
-        ? `<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--glassBorder)">
-            <div style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:8px">No Cost Set (${noCostUsers.length})</div>
-            ${noCostUsers.map(u => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(20,16,44,0.35);margin-bottom:6px">
-              <div style="font-size:13px;color:var(--textMuted);font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.displayName||u.email||'Unknown'}${u.gbUsername?` <span style="color:#22d3ee">@${u.gbUsername}</span>`:''}</div>
-              <button class="set-cost-btn" data-uid="${u.uid}" data-name="${(u.displayName||u.email||'User').replace(/"/g,'')}" style="padding:5px 9px;border-radius:7px;border:1px solid rgba(52,211,153,0.35);background:rgba(16,185,129,0.1);color:#34d399;font-size:11px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;flex-shrink:0">Set Cost</button>
-            </div>`).join('')}
-          </div>` : '';
+      const noCostHtml = noCostUsers.map(u => `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:rgba(20,16,44,0.35);margin-bottom:6px">
+        <div style="font-size:13px;color:var(--textMuted);font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.displayName||u.email||'Unknown'}${u.gbUsername?` <span style="color:#22d3ee">@${u.gbUsername}</span>`:''}</div>
+        <button class="set-cost-btn" data-uid="${u.uid}" data-name="${(u.displayName||u.email||'User').replace(/"/g,'')}" style="padding:5px 9px;border-radius:7px;border:1px solid rgba(52,211,153,0.35);background:rgba(16,185,129,0.1);color:#34d399;font-size:11px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;flex-shrink:0">Set Cost</button>
+      </div>`).join('');
 
-      return `<div id="subRevPanel" class="fade-in" style="margin-top:20px;border-radius:16px;background:var(--bgCard);border:1.5px solid rgba(52,211,153,0.3);overflow:hidden">
-        <!-- Header -->
-        <div style="padding:18px 20px 14px;background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(14,11,28,0.9));border-bottom:1px solid rgba(52,211,153,0.2)">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+      return `<div class="user-detail-page fade-in">
+        <!-- Back + Title -->
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+          <button id="subRevBackBtn" class="btn btn-purple" style="padding:8px 14px;font-size:12px;font-weight:700;flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:-2px;margin-right:4px"><polyline points="15,18 9,12 15,6"/></svg>Back
+          </button>
+          <h2 style="font-family:'Orbitron',monospace;font-size:15px;font-weight:800;color:#34d399;letter-spacing:1px">SUBSCRIPTION REVENUE</h2>
+        </div>
+
+        <!-- Summary card -->
+        <div style="border-radius:16px;background:linear-gradient(135deg,rgba(16,185,129,0.12),rgba(14,11,28,0.95));border:1.5px solid rgba(52,211,153,0.35);padding:20px 22px;margin-bottom:16px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:16px">
             <div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34d399" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                <span style="font-family:'Orbitron',monospace;font-size:13px;font-weight:800;color:#34d399;letter-spacing:1px">SUBSCRIPTION REVENUE</span>
-              </div>
-              ${rangeNote}
+              <div style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:6px">Total Revenue</div>
+              <div style="font-family:'Orbitron',monospace;font-size:32px;font-weight:900;color:#34d399;line-height:1">${fmtMoney(total)}</div>
+              <div style="font-size:12px;color:var(--textMuted);margin-top:5px">${rows.length} paid account${rows.length!==1?'s':''} · ${rangeNote}</div>
             </div>
-            <div style="text-align:right">
-              <div style="font-family:'Orbitron',monospace;font-size:26px;font-weight:900;color:#34d399">${fmtMoney(total)}</div>
-              <div style="font-size:11px;color:var(--textMuted);margin-top:1px">${rows.length} account${rows.length!==1?'s':''}</div>
+            <div style="text-align:right;padding:12px 16px;border-radius:12px;background:rgba(16,185,129,0.08);border:1px solid rgba(52,211,153,0.2)">
+              <div style="font-size:11px;color:var(--textMuted);margin-bottom:4px">Avg per account</div>
+              <div style="font-family:'Orbitron',monospace;font-size:18px;font-weight:800;color:#34d399">${rows.length > 0 ? fmtMoney(total/rows.length) : '$0.00'}</div>
             </div>
           </div>
-          <!-- Date range filters -->
-          <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:140px">
+          <!-- Date filters -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:130px">
               <label style="font-size:11px;color:var(--textMuted);font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap">From</label>
               <input type="date" id="subRevFrom" value="${state.subRevFrom}" style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid rgba(110,90,175,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;min-width:0"/>
             </div>
-            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:140px">
+            <div style="display:flex;align-items:center;gap:6px;flex:1;min-width:130px">
               <label style="font-size:11px;color:var(--textMuted);font-weight:700;text-transform:uppercase;letter-spacing:1px;white-space:nowrap">To</label>
               <input type="date" id="subRevTo" value="${state.subRevTo}" style="flex:1;padding:7px 10px;border-radius:8px;border:1.5px solid rgba(110,90,175,0.4);background:var(--bgInput);color:var(--textPrimary);font-size:13px;font-weight:600;outline:none;font-family:'Rajdhani',sans-serif;min-width:0"/>
             </div>
-            ${state.subRevFrom||state.subRevTo ? `<button onclick="state.subRevFrom='';state.subRevTo='';render();" style="padding:7px 12px;border-radius:8px;border:1px solid rgba(110,90,175,0.3);background:transparent;color:var(--textMuted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap">Clear</button>` : ''}
+            ${state.subRevFrom||state.subRevTo ? `<button id="clearRevFilter" style="padding:7px 12px;border-radius:8px;border:1.5px solid rgba(110,90,175,0.35);background:transparent;color:var(--textMuted);font-size:12px;font-weight:700;cursor:pointer;font-family:'Rajdhani',sans-serif;white-space:nowrap;flex-shrink:0">✕ Clear</button>` : ''}
           </div>
         </div>
-        <!-- Rows -->
-        <div style="padding:16px 20px">
-          ${rowsHtml}
-          ${noCostHtml}
+
+        <!-- Account breakdown -->
+        <div style="border-radius:16px;background:var(--bgCard);border:1.5px solid rgba(130,105,215,0.28);overflow:hidden;margin-bottom:16px">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(130,105,215,0.18);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">Account Breakdown</div>
+            <div style="font-size:12px;color:var(--textMuted)">${rows.length} account${rows.length!==1?'s':''}</div>
+          </div>
+          <div style="padding:12px 16px">
+            ${rowsHtml}
+          </div>
         </div>
+
+        <!-- No cost set -->
+        ${noCostUsers.length > 0 ? `<div style="border-radius:16px;background:var(--bgCard);border:1.5px solid rgba(130,105,215,0.2);overflow:hidden">
+          <div style="padding:14px 18px;border-bottom:1px solid rgba(130,105,215,0.15);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:11px;color:var(--textMuted);text-transform:uppercase;letter-spacing:1.2px;font-weight:700">No Cost Set</div>
+            <div style="font-size:12px;color:var(--textMuted)">${noCostUsers.length} account${noCostUsers.length!==1?'s':''}</div>
+          </div>
+          <div style="padding:12px 16px">${noCostHtml}</div>
+        </div>` : ''}
       </div>`;
+    }
+
+    function bindSubRevPage() {
+      const backBtn = document.getElementById('subRevBackBtn');
+      if (backBtn) backBtn.onclick = () => { state.view = 'dashboard'; render(); };
+
+      const srFrom = document.getElementById('subRevFrom');
+      const srTo   = document.getElementById('subRevTo');
+      if (srFrom) srFrom.onchange = (e) => { state.subRevFrom = e.target.value; render(); };
+      if (srTo)   srTo.onchange   = (e) => { state.subRevTo   = e.target.value; render(); };
+
+      const clearBtn = document.getElementById('clearRevFilter');
+      if (clearBtn) clearBtn.onclick = () => { state.subRevFrom = ''; state.subRevTo = ''; render(); };
+
+      document.querySelectorAll('.set-cost-btn').forEach(btn => {
+        btn.onclick = (e) => {
+          e.stopPropagation();
+          showSetCostModal(btn.dataset.uid, btn.dataset.name);
+        };
+      });
     }
 
     // Modal to set/edit subscription cost for a user
