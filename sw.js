@@ -1,5 +1,5 @@
 const CACHE = 'gb-admin-v2';
-const BASE = '/Admin/';
+const BASE = './';
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -21,6 +21,7 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+
   e.respondWith(
     fetch(e.request).then(r => {
       if (r.ok) {
