@@ -1,4 +1,4 @@
-const CACHE = 'gb-admin-v2';
+const CACHE = 'SA-Access-v2';
 const BASE = './';
 
 self.addEventListener('install', e => {
